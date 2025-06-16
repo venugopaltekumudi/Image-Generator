@@ -1,5 +1,5 @@
 import Home from "./Home";
-import CreatePost from "./createpost";
+import CreatePost from "./CreatePost.jsx";
 
 export {
     Home,CreatePost
