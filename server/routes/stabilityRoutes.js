@@ -1,4 +1,4 @@
-// server/routes/stabilityRoutes.js
+
 import express from "express";
 import * as dotenv from "dotenv";
 import axios from "axios";
