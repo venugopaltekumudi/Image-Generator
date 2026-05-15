@@ -14,6 +14,7 @@ const CreatePost = () => {
     if (form.prompt) {
       try {
         setGeneratingImg(true);
+        // Ensure this URL matches your Render backend exactly
         const response = await fetch(
           "https://image-generator-backend-f0m2.onrender.com/api/v1/stability",
           {
@@ -24,11 +25,20 @@ const CreatePost = () => {
         );
 
         const data = await response.json();
-        if (!response.ok) throw new Error(data.message);
 
-        setForm({ ...form, photo: data.photo });
+        if (!response.ok) {
+          throw new Error(data.message || "Failed to generate image");
+        }
+
+        // FIX: Ensure the photo string starts with the correct data URI prefix
+        const formattedPhoto = data.photo.startsWith("data:image")
+          ? data.photo
+          : `data:image/png;base64,${data.photo}`;
+
+        setForm({ ...form, photo: formattedPhoto });
       } catch (err) {
         alert(err.message);
+        console.error(err);
       } finally {
         setGeneratingImg(false);
       }
@@ -39,6 +49,7 @@ const CreatePost = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     if (form.prompt && form.photo) {
       setLoading(true);
       try {
@@ -47,48 +58,66 @@ const CreatePost = () => {
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(form),
+            body: JSON.stringify({ ...form }),
           },
         );
-        await response.json();
-        navigate("/");
+
+        if (response.ok) {
+          alert("Post shared successfully!");
+          navigate("/");
+        } else {
+          alert("Could not share the post.");
+        }
       } catch (err) {
         alert(err);
       } finally {
         setLoading(false);
       }
     } else {
-      alert("Please generate an image first");
+      alert("Please generate an image with a prompt");
     }
+  };
+
+  const handleChange = (e) =>
+    setForm({ ...form, [e.target.name]: e.target.value });
+
+  const handleSurpriseMe = () => {
+    const randomPrompt = getRandomPrompt(form.prompt);
+    setForm({ ...form, prompt: randomPrompt });
   };
 
   return (
     <section className="max-w-7xl mx-auto p-10">
-      <h1 className="font-extrabold text-[32px]">Create</h1>
+      <div>
+        <h1 className="font-extrabold text-[#222328] text-[32px]">Create</h1>
+        <p className="mt-2 text-[#666e75] text-[14px] max-w-[500px]">
+          Generate an imaginative image and share it with the community
+        </p>
+      </div>
+
       <form className="mt-16 max-w-3xl" onSubmit={handleSubmit}>
         <div className="flex flex-col gap-5">
           <FormField
-            labelName="Name"
+            labelName="Your Name"
             type="text"
             name="name"
-            placeholder="John"
+            placeholder="Ex. John Doe"
             value={form.name}
-            handleChange={(e) => setForm({ ...form, name: e.target.value })}
+            handleChange={handleChange}
           />
+
           <FormField
             labelName="Prompt"
             type="text"
             name="prompt"
-            placeholder="A futuristic city"
+            placeholder="An oil painting by Matisse of a humanoid robot playing chess"
             value={form.prompt}
-            handleChange={(e) => setForm({ ...form, prompt: e.target.value })}
+            handleChange={handleChange}
             isSurpriseMe
-            handleSurpriseMe={() =>
-              setForm({ ...form, prompt: getRandomPrompt(form.prompt) })
-            }
+            handleSurpriseMe={handleSurpriseMe}
           />
 
-          <div className="relative bg-gray-50 border border-gray-300 rounded-lg w-64 h-64 flex justify-center items-center overflow-hidden">
+          <div className="relative bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 w-64 p-3 h-64 flex justify-center items-center">
             {form.photo ? (
               <img
                 src={form.photo}
@@ -96,28 +125,43 @@ const CreatePost = () => {
                 className="w-full h-full object-contain"
               />
             ) : (
-              <img src={preview} alt="preview" className="w-9/12 opacity-40" />
+              <img
+                src={preview}
+                alt="preview"
+                className="w-9/12 h-9/12 object-contain opacity-40"
+              />
             )}
+
             {generatingImg && (
-              <div className="absolute inset-0 z-10 flex justify-center items-center bg-[rgba(0,0,0,0.5)]">
+              <div className="absolute inset-0 z-0 flex justify-center items-center bg-[rgba(0,0,0,0.5)] rounded-lg">
                 <Loader />
               </div>
             )}
           </div>
         </div>
-        <button
-          type="button"
-          onClick={generateImage}
-          className="mt-5 bg-green-700 text-white px-5 py-2.5 rounded-md"
-        >
-          {generatingImg ? "Generating..." : "Generate"}
-        </button>
-        <button
-          type="submit"
-          className="mt-10 bg-[#6469ff] text-white px-5 py-2.5 rounded-md block"
-        >
-          {loading ? "Sharing..." : "Share with the Community"}
-        </button>
+
+        <div className="mt-5 flex gap-5">
+          <button
+            type="button"
+            onClick={generateImage}
+            className=" text-white bg-green-700 font-medium rounded-md text-sm w-full sm:w-auto px-5 py-2.5 text-center"
+          >
+            {generatingImg ? "Generating..." : "Generate"}
+          </button>
+        </div>
+
+        <div className="mt-10">
+          <p className="mt-2 text-[#666e75] text-[14px]">
+            Once you have created the image, you can share it with others in the
+            community
+          </p>
+          <button
+            type="submit"
+            className="mt-3 text-white bg-[#6469ff] font-medium rounded-md text-sm w-full sm:w-auto px-5 py-2.5 text-center"
+          >
+            {loading ? "Sharing..." : "Share with the Community"}
+          </button>
+        </div>
       </form>
     </section>
   );
