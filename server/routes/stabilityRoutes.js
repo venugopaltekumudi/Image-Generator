@@ -1,5 +1,6 @@
 import express from "express";
 import * as dotenv from "dotenv";
+import fetch from "node-fetch";
 
 dotenv.config();
 
@@ -9,27 +10,38 @@ router.post("/", async (req, res) => {
   try {
     const { prompt } = req.body;
 
-    if (!prompt) return res.status(400).json({ message: "Prompt is required" });
+    const response = await fetch(
+      "https://api.stability.ai/v1/generation/stable-diffusion-v1-6/text-to-image",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          Authorization: `Bearer ${process.env.STABILITY_API_KEY}`,
+        },
+        body: JSON.stringify({
+          text_prompts: [{ text: prompt }],
+          cfg_scale: 7,
+          height: 512,
+          width: 512,
+          steps: 30,
+          samples: 1,
+        }),
+      },
+    );
 
-    // Use Pollinations AI (Free, no balance required)
-    const encodedPrompt = encodeURIComponent(prompt.trim());
-    const seed = Math.floor(Math.random() * 1000000);
-    const imageUrl = `https://pollinations.ai/p/${encodedPrompt}?width=512&height=512&seed=${seed}&nologo=true`;
+    if (!response.ok) {
+      const errorData = await response.json();
+      return res.status(response.status).json({ message: errorData.message });
+    }
 
-    const response = await fetch(imageUrl);
+    const responseJSON = await response.json();
+    const photo = responseJSON.artifacts[0].base64;
 
-    if (!response.ok)
-      return res.status(500).json({ message: "AI provider error" });
-
-    const arrayBuffer = await response.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    const base64 = buffer.toString("base64");
-
-    // Return the full data URI
-    return res.status(200).json({ photo: `data:image/jpeg;base64,${base64}` });
+    res.status(200).json({ photo: `data:image/png;base64,${photo}` });
   } catch (error) {
-    console.error("Backend Error:", error);
-    res.status(500).json({ message: "Generation failed" });
+    console.error(error);
+    res.status(500).json({ message: "Something went wrong" });
   }
 });
 
