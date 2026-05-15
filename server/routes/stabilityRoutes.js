@@ -1,6 +1,5 @@
 import express from "express";
 import * as dotenv from "dotenv";
-import fetch from "node-fetch";
 
 dotenv.config();
 
@@ -10,6 +9,7 @@ router.post("/", async (req, res) => {
   try {
     const { prompt } = req.body;
 
+    // Node 24 has built-in fetch, so we don't need the external package
     const response = await fetch(
       "https://api.stability.ai/v1/generation/stable-diffusion-v1-6/text-to-image",
       {
