@@ -1,68 +1,27 @@
-
 import express from "express";
 import * as dotenv from "dotenv";
-import axios from "axios";
 
 dotenv.config();
 const router = express.Router();
 
-const STABILITY_API_KEY = process.env.STABILITY_API_KEY;
-
-router.route("/").get((req, res) => {
-  res.status(200).json({ message: "Hello from Stability AI!" });
-});
-
-router.route("/").post(async (req, res) => {
+router.post("/", async (req, res) => {
   try {
     const { prompt } = req.body;
+    const encodedPrompt = encodeURIComponent(prompt.trim());
+    const seed = Math.floor(Math.random() * 1000000);
+    const imageUrl = `https://pollinations.ai/p/${encodedPrompt}?width=512&height=512&seed=${seed}&nologo=true`;
 
-    if (!prompt || typeof prompt !== "string") {
-      return res
-        .status(400)
-        .json({ message: "Prompt must be a non-empty string" });
-    }
+    const response = await fetch(imageUrl);
+    if (!response.ok) throw new Error("AI provider error");
 
-    console.log("Calling Stability AI with prompt:", prompt);
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const base64 = buffer.toString("base64");
 
-    const response = await axios.post(
-      "https://api.stability.ai/v1/generation/stable-diffusion-xl-1024-v1-0/text-to-image",
-      {
-        text_prompts: [{ text: prompt }],
-        cfg_scale: 7,
-        height: 1024,
-        width: 1024,
-        samples: 1,
-        steps: 30,
-      },
-      {
-        headers: {
-          Accept: "application/json",
-          Authorization: `Bearer ${STABILITY_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
-
-    const imageBase64 = response.data.artifacts?.[0]?.base64;
-
-    if (!imageBase64) {
-      return res.status(500).json({ message: "Image generation failed" });
-    }
-
-    res.status(200).json({ photo: imageBase64 });
+    // Important: Include the full data URI prefix
+    res.status(200).json({ photo: `data:image/jpeg;base64,${base64}` });
   } catch (error) {
-    const message =
-      error?.response?.data?.message ||
-      error?.response?.data ||
-      error.message ||
-      "Unknown error";
-
-    console.error("Stability AI Error:", message);
-
-    res.status(500).json({
-      message: "Image generation failed",
-      error: message,
-    });
+    res.status(500).json({ message: "Generation failed" });
   }
 });
 
