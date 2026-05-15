@@ -30,14 +30,14 @@ const CreatePost = () => {
       try {
         setGeneratingImg(true);
         const response = await fetch(
-          "https://image-generator-rpjg.onrender.com/api/v1/stability",
+          "import.meta.env.VITE_BACKEND_URL/api/v1/stability",
           {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
             },
             body: JSON.stringify({ prompt: form.prompt }),
-          }
+          },
         );
 
         const data = await response.json();
@@ -68,14 +68,14 @@ const CreatePost = () => {
       setLoading(true);
       try {
         const response = await fetch(
-          "https://image-generator-rpjg.onrender.com/api/v1/post",
+          "import.meta.env.VITE_BACKEND_URL/api/v1/post",
           {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
             },
             body: JSON.stringify(form),
-          }
+          },
         );
 
         await response.json();
