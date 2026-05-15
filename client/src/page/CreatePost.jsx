@@ -14,6 +14,7 @@ const CreatePost = () => {
     if (form.prompt) {
       try {
         setGeneratingImg(true);
+        // POINTING TO LIVE RENDER BACKEND
         const response = await fetch(
           "https://image-generator-backend-f0m2.onrender.com/api/v1/stability",
           {
@@ -26,7 +27,7 @@ const CreatePost = () => {
         const data = await response.json();
         if (!response.ok) throw new Error(data.message);
 
-        setForm({ ...form, photo: data.photo });
+        setForm({ ...form, photo: `data:image/png;base64,${data.photo}` });
       } catch (err) {
         alert(err.message);
       } finally {
@@ -79,7 +80,7 @@ const CreatePost = () => {
             labelName="Prompt"
             type="text"
             name="prompt"
-            placeholder="A futuristic city"
+            placeholder="A comic book cover"
             value={form.prompt}
             handleChange={(e) => setForm({ ...form, prompt: e.target.value })}
             isSurpriseMe
@@ -114,7 +115,7 @@ const CreatePost = () => {
         </button>
         <button
           type="submit"
-          className="mt-10 bg-[#6469ff] text-white px-5 py-2.5 rounded-md block"
+          className="mt-10 bg-[#6469ff] text-white px-5 py-2.5 rounded-md block w-full sm:w-auto"
         >
           {loading ? "Sharing..." : "Share with the Community"}
         </button>
