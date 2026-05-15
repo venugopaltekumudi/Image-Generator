@@ -1,190 +1,139 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-
 import { preview } from "../assets";
 import { getRandomPrompt } from "../utils";
 import { FormField, Loader } from "../components";
 
 const CreatePost = () => {
   const navigate = useNavigate();
-
-  const [form, setForm] = useState({
-    name: "",
-    prompt: "",
-    photo: "",
-  });
-
+  const [form, setForm] = useState({ name: "", prompt: "", photo: "" });
   const [generatingImg, setGeneratingImg] = useState(false);
   const [loading, setLoading] = useState(false);
   const [displayImage, setDisplayImage] = useState(null);
 
-  const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
-
-  const handleSurpriseMe = () => {
-    const randomPrompt = getRandomPrompt(form.prompt);
-    setForm({ ...form, prompt: randomPrompt });
-  };
-
   const generateImage = async () => {
-    if (form.prompt) {
-      try {
-        setGeneratingImg(true);
-        const response = await fetch(
-          "https://image-generator-backend-f0m2.onrender.com/api/v1/stability",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              prompt: form.prompt,
-            }),
-          },
-        );
+    if (!form.prompt.trim()) return alert("Please enter a prompt");
 
-        const data = await response.json();
+    try {
+      setGeneratingImg(true);
+      // POINTING TO YOUR NEW RENDER BACKEND
+      const response = await fetch(
+        "https://image-generator-backend-f0m2.onrender.com/api/v1/stability",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt: form.prompt }),
+        },
+      );
 
-        if (data.photo) {
-          // BLOB CONVERSION: This fixes the "white box" rendering issue seen in your local tests
-          const base64Data = data.photo.split(",")[1];
-          const byteCharacters = atob(base64Data);
-          const byteNumbers = new Array(byteCharacters.length);
-          for (let i = 0; i < byteCharacters.length; i++) {
-            byteNumbers[i] = byteCharacters.charCodeAt(i);
-          }
-          const byteArray = new Uint8Array(byteNumbers);
-          const blob = new Blob([byteArray], { type: "image/jpeg" });
-          const imageUrl = URL.createObjectURL(blob);
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message);
 
-          setForm({ ...form, photo: data.photo });
-          setDisplayImage(imageUrl);
-        } else {
-          alert("Generation failed on server side.");
-        }
-      } catch (err) {
-        console.error(err);
-        alert("Cannot connect to the live backend. Check Render status.");
-      } finally {
-        setGeneratingImg(false);
+      // --- THE BLOB FIX (Solves the white box issue) ---
+      const base64Data = data.photo.split(",")[1];
+      const byteCharacters = atob(base64Data);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
       }
-    } else {
-      alert("Please provide a proper prompt");
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: "image/jpeg" });
+      const imageUrl = URL.createObjectURL(blob);
+
+      setForm({ ...form, photo: data.photo });
+      setDisplayImage(imageUrl);
+      // ------------------------------------------------
+    } catch (err) {
+      alert(
+        "The server is waking up or busy. Please wait 30 seconds and try again.",
+      );
+    } finally {
+      setGeneratingImg(false);
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!form.photo) return alert("Please generate an image first");
 
-    if (form.prompt && form.photo) {
-      setLoading(true);
-      try {
-        const response = await fetch(
-          "https://image-generator-backend-f0m2.onrender.com/api/v1/post",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ ...form }),
-          },
-        );
+    setLoading(true);
+    try {
+      const response = await fetch(
+        "https://image-generator-backend-f0m2.onrender.com/api/v1/post",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(form),
+        },
+      );
 
-        if (response.ok) {
-          alert("Success! Your post is shared.");
-          navigate("/");
-        } else {
-          const errorData = await response.json();
-          alert(`Error: ${errorData.message || "Failed to share post"}`);
-        }
-      } catch (err) {
-        console.error(err);
-        alert("Connection error when sharing. Please check your console.");
-      } finally {
-        setLoading(false);
+      if (response.ok) {
+        alert("Shared successfully!");
+        navigate("/");
       }
-    } else {
-      alert("Please generate an image with a prompt first!");
+    } catch (err) {
+      alert("Error sharing post.");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <section className="max-w-7xl mx-auto px-4 py-8">
-      <div>
-        <h1 className="font-extrabold text-[#222328] text-[32px]">Create</h1>
-        <p className="mt-2 text-[#666e75] text-[14px] max-w-[500px]">
-          Generate an imaginative image and share it with the community
-        </p>
-      </div>
-
+    <section className="max-w-7xl mx-auto p-10">
+      <h1 className="font-extrabold text-[32px]">Create</h1>
       <form className="mt-16 max-w-3xl" onSubmit={handleSubmit}>
         <div className="flex flex-col gap-5">
           <FormField
-            labelName="Your Name"
+            labelName="Name"
             type="text"
             name="name"
-            placeholder="Ex. John Doe"
+            placeholder="John"
             value={form.name}
-            handleChange={handleChange}
+            handleChange={(e) => setForm({ ...form, name: e.target.value })}
           />
-
           <FormField
             labelName="Prompt"
             type="text"
             name="prompt"
-            placeholder="An oil painting by Matisse of a humanoid robot playing chess"
+            placeholder="A futuristic plane"
             value={form.prompt}
-            handleChange={handleChange}
+            handleChange={(e) => setForm({ ...form, prompt: e.target.value })}
             isSurpriseMe
-            handleSurpriseMe={handleSurpriseMe}
+            handleSurpriseMe={() =>
+              setForm({ ...form, prompt: getRandomPrompt(form.prompt) })
+            }
           />
 
-          <div className="relative bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 w-64 p-3 h-64 flex justify-center items-center">
-            {displayImage ? (
-              <img
-                src={displayImage}
-                alt={form.prompt}
-                className="w-full h-full object-contain"
-              />
-            ) : (
-              <img
-                src={preview}
-                alt="preview"
-                className="w-9/12 h-9/12 object-contain opacity-40"
-              />
-            )}
-
+          <div className="relative bg-gray-50 border border-gray-300 rounded-lg w-64 h-64 flex justify-center items-center overflow-hidden">
+            <img
+              src={displayImage || preview}
+              alt="preview"
+              className={
+                displayImage
+                  ? "w-full h-full object-contain"
+                  : "w-9/12 opacity-40"
+              }
+            />
             {generatingImg && (
-              <div className="absolute inset-0 z-0 flex justify-center items-center bg-[rgba(0,0,0,0.5)] rounded-lg">
+              <div className="absolute inset-0 z-10 flex justify-center items-center bg-[rgba(0,0,0,0.5)]">
                 <Loader />
               </div>
             )}
           </div>
         </div>
-
-        <div className="mt-5 flex gap-5">
-          <button
-            type="button"
-            onClick={generateImage}
-            className="text-white bg-green-700 font-medium rounded-md text-sm w-full sm:w-auto px-5 py-2.5 text-center"
-          >
-            {generatingImg ? "Generating..." : "Generate"}
-          </button>
-        </div>
-
-        <div className="mt-10">
-          <p className="mt-2 text-[#666e75] text-[14px]">
-            Once you have created the image you want, you can share it with
-            others in the community
-          </p>
-          <button
-            type="submit"
-            className="mt-3 text-white bg-[#6469ff] font-medium rounded-md text-sm w-full sm:w-auto px-5 py-2.5 text-center"
-          >
-            {loading ? "Sharing..." : "Share with the Community"}
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={generateImage}
+          className="mt-5 bg-green-700 text-white px-5 py-2.5 rounded-md"
+        >
+          {generatingImg ? "Generating..." : "Generate"}
+        </button>
+        <button
+          type="submit"
+          className="mt-10 bg-[#6469ff] text-white px-5 py-2.5 rounded-md block w-full sm:w-auto"
+        >
+          {loading ? "Sharing..." : "Share Post"}
+        </button>
       </form>
     </section>
   );
